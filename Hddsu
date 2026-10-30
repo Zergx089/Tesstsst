@@ -1,0 +1,240 @@
+-- [[ The Juggernaut: Контра — Pro Hub ]] --
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- Конфигурация
+getgenv().CounterHubConfig = {
+    Aimbot = {
+        Enabled = false,
+        Key = Enum.UserInputType.MouseButton2,
+        Smoothness = 3,
+        AimPart = "Head",
+        TeamCheck = true,
+        ShowFOV = true,
+        FOVRadius = 120
+    },
+    Visuals = {
+        ESPBox = false,
+        TeamCheck = true
+    },
+    Movement = {
+        Bhop = false,
+        InfJump = false,
+        SpeedHack = false,
+        SpeedValue = 24
+    }
+}
+
+-- Удаление старого UI
+if CoreGui:FindFirstChild("CounterProHub") then
+    CoreGui:FindFirstChild("CounterProHub"):Destroy()
+end
+
+-- Создание GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CounterProHub"
+ScreenGui.Parent = CoreGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+MainFrame.BackgroundTransparency = 0.1
+MainFrame.Position = UDim2.new(0.5, -225, 0.5, -160)
+MainFrame.Size = UDim2.new(0, 450, 0, 320)
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Parent = MainFrame
+UIStroke.Color = Color3.fromRGB(80, 120, 255)
+UIStroke.Transparency = 0.4
+UIStroke.Thickness = 1.5
+
+-- Верхняя панель (Шапка)
+local TopBar = Instance.new("Frame")
+TopBar.Parent = MainFrame
+TopBar.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+TopBar.Size = UDim2.new(1, 0, 0, 35)
+
+local TopCorner = Instance.new("UICorner")
+TopCorner.CornerRadius = UDim.new(0, 10)
+TopCorner.Parent = TopBar
+
+local Title = Instance.new("TextLabel")
+Title.Parent = TopBar
+Title.BackgroundTransparency = 1
+Title.Position = UDim2.new(0, 12, 0, 0)
+Title.Size = UDim2.new(1, -12, 1, 0)
+Title.Font = Enum.Font.GothamBold
+Title.Text = "Juggernaut Контра | Pro Hub [RightShift = Hide]"
+Title.TextColor3 = Color3.fromRGB(220, 225, 255)
+Title.TextSize = 14
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Контейнер для функций
+local Content = Instance.new("ScrollingFrame")
+Content.Parent = MainFrame
+Content.BackgroundTransparency = 1
+Content.Position = UDim2.new(0, 10, 0, 45)
+Content.Size = UDim2.new(1, -20, 1, -55)
+Content.CanvasSize = UDim2.new(0, 0, 0, 380)
+Content.ScrollBarThickness = 4
+
+local UIList = Instance.new("UIListLayout")
+UIList.Parent = Content
+UIList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList.Padding = UDim.new(0, 8)
+
+-- Функция создания переключателей
+local function AddToggle(name, default, callback)
+    local Btn = Instance.new("TextButton")
+    Btn.Parent = Content
+    Btn.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+    Btn.Size = UDim2.new(1, 0, 0, 34)
+    Btn.Font = Enum.Font.GothamMedium
+    Btn.Text = "   " .. name .. ": " .. (default and "ON" or "OFF")
+    Btn.TextColor3 = Color3.fromRGB(200, 205, 230)
+    Btn.TextSize = 13
+    Btn.TextXAlignment = Enum.TextXAlignment.Left
+
+    local Corner = Instance.new("UICorner")
+    Corner.CornerRadius = UDim.new(0, 6)
+    Corner.Parent = Btn
+
+    local state = default
+    Btn.MouseButton1Click:Connect(function()
+        state = not state
+        Btn.Text = "   " .. name .. ": " .. (state and "ON" or "OFF")
+        Btn.BackgroundColor3 = state and Color3.fromRGB(40, 80, 150) or Color3.fromRGB(30, 30, 42)
+        callback(state)
+    end)
+end
+
+-- Добавление элементов в меню
+AddToggle("Aimbot (Правая кнопка мыши)", getgenv().CounterHubConfig.Aimbot.Enabled, function(v)
+    getgenv().CounterHubConfig.Aimbot.Enabled = v
+end)
+
+AddToggle("ESP Box (Подсветка игроков)", getgenv().CounterHubConfig.Visuals.ESPBox, function(v)
+    getgenv().CounterHubConfig.Visuals.ESPBox = v
+end)
+
+AddToggle("Bunnyhop (Авто-прыжок)", getgenv().CounterHubConfig.Movement.Bhop, function(v)
+    getgenv().CounterHubConfig.Movement.Bhop = v
+end)
+
+AddToggle("Infinite Jump (Прыжки в воздухе)", getgenv().CounterHubConfig.Movement.InfJump, function(v)
+    getgenv().CounterHubConfig.Movement.InfJump = v
+end)
+
+AddToggle("SpeedHack (Ускорение)", getgenv().CounterHubConfig.Movement.SpeedHack, function(v)
+    getgenv().CounterHubConfig.Movement.SpeedHack = v
+end)
+
+-- Рисование FOV круга для аимбота
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 1.5
+FOVCircle.NumSides = 30
+FOVCircle.Filled = false
+FOVCircle.Transparency = 0.7
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+
+-- Логика Аимбота
+local function GetTarget()
+    local target = nil
+    local shortestDist = math.huge
+    local mousePos = UserInputService:GetMouseLocation()
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            if getgenv().CounterHubConfig.Aimbot.TeamCheck and p.Team == LocalPlayer.Team then
+                continue
+            end
+            local hum = p.Character:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then
+                local part = p.Character:FindFirstChild(getgenv().CounterHubConfig.Aimbot.AimPart)
+                if part then
+                    local screenPos, onScreen = Camera:WorldToViewportPoint(part.Position)
+                    if onScreen then
+                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - mousePos).Magnitude
+                        if dist < getgenv().CounterHubConfig.Aimbot.FOVRadius and dist < shortestDist then
+                            shortestDist = dist
+                            target = p
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return target
+end
+
+-- Основной цикл (RenderStepped)
+RunService.RenderStepped:Connect(function()
+    -- Обновление FOV круга
+    FOVCircle.Visible = getgenv().CounterHubConfig.Aimbot.Enabled and getgenv().CounterHubConfig.Aimbot.ShowFOV
+    FOVCircle.Radius = getgenv().CounterHubConfig.Aimbot.FOVRadius
+    FOVCircle.Position = UserInputService:GetMouseLocation()
+
+    -- Аимбот
+    if getgenv().CounterHubConfig.Aimbot.Enabled and UserInputService:IsMouseButtonPressed(getgenv().CounterHubConfig.Aimbot.Key) then
+        local t = GetTarget()
+        if t and t.Character and t.Character:FindFirstChild(getgenv().CounterHubConfig.Aimbot.AimPart) then
+            local part = t.Character[getgenv().CounterHubConfig.Aimbot.AimPart]
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, part.Position), 1 / getgenv().CounterHubConfig.Aimbot.Smoothness)
+        end
+    end
+
+    -- Bhop
+    if getgenv().CounterHubConfig.Movement.Bhop then
+        pcall(function()
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChildOfClass("Humanoid") then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum.FloorMaterial ~= Enum.Material.Air then
+                    hum:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        end)
+    end
+
+    -- SpeedHack
+    if getgenv().CounterHubConfig.Movement.SpeedHack then
+        pcall(function()
+            local char = LocalPlayer.Character
+            if char and char:FindFirstChildOfClass("Humanoid") then
+                char:FindFirstChildOfClass("Humanoid").WalkSpeed = getgenv().CounterHubConfig.Movement.SpeedValue
+            end
+        end)
+    end
+end)
+
+-- Infinite Jump обработчик
+UserInputService.JumpRequest:Connect(function()
+    if getgenv().CounterHubConfig.Movement.InfJump then
+        pcall(function()
+            LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end)
+    end
+end)
+
+-- Скрытие меню по RightShift
+UserInputService.InputBegan:Connect(function(input, gpe)
+    if input.KeyCode == Enum.KeyCode.RightShift then
+        MainFrame.Visible = not MainFrame.Visible
+    end
+end)
+
+print("[Pro Hub] Successfully Loaded for The Juggernaut (Контра)!")
